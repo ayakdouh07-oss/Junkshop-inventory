@@ -1,0 +1,1 @@
+# PROMPT_LOG.md\n\nAdd one entry for every prompt you actually use.\n\n## Entry 1 — Seller-side version\n**Prompt:** Make the junk shop the seller, not buyer. Track starting stock, selling price/kg, sales to customers, payments received, remaining stock and prevent overselling. Separate Inventory and Sales/Payments sections. Keep it one HTML page using localStorage.\n
