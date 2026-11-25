@@ -1,27 +1,769 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Junk Shop Inventory & Sales</title>
-<style>
-*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;background:#f4f6f8;color:#17202a}header{background:#111827;color:white;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:15px}h1{font-size:1.3rem;margin:0}header p{color:#cbd5e1;margin:5px 0}nav{display:flex;gap:8px}nav button{padding:12px 18px;background:transparent;border:0;color:white;border-radius:8px;font-weight:bold;cursor:pointer}nav button.active{background:#374151}main{max-width:1000px;margin:22px auto;padding:0 14px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px}.card,form,.panel{background:white;padding:16px;border-radius:12px;box-shadow:0 2px 9px #0000000c;margin-bottom:16px}.card small{display:block;color:#64748b;margin-bottom:7px}.card strong{font-size:1.3rem}h2{font-size:1.15rem;margin:0 0 14px}.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}label{font-weight:600}input,select{display:block;width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:8px;margin-top:6px;font:inherit}.primary{margin-top:14px;padding:11px 15px;background:#111827;color:white;border:0;border-radius:8px;font-weight:bold}.danger{padding:8px 10px;background:#fee2e2;color:#991b1b;border:0;border-radius:8px}table{width:100%;border-collapse:collapse;min-width:650px}th,td{text-align:left;padding:11px 8px;border-bottom:1px solid #e2e8f0}th{color:#475569}.panel{overflow-x:auto}.empty{text-align:center;padding:20px;color:#64748b}.note{font-size:.9rem;color:#64748b}.hidden{display:none}
-</style></head><body>
-<header><div><h1>♻️ Junk Shop Inventory & Sales Tracker</h1><p>Manage your stock and sales to customers.</p></div><nav><button id="invTab" class="active">Inventory</button><button id="salesTab">Sales / Payments</button></nav></header><main>
-<section id="inventoryView"><div class="cards"><div class="card"><small>Item Types</small><strong id="itemCount">0</strong></div><div class="card"><small>Stock Available</small><strong id="stockTotal">0 kg</strong></div></div>
-<form id="itemForm"><h2>Add Inventory Item</h2><div class="fields"><label>Item name<input id="name" required maxlength="60" placeholder="e.g. Plastic bottles"></label><label>Starting stock (kg)<input id="stock" type="number" min="0" step=".01" required placeholder="e.g. 20"></label><label>Selling price per kg (₱)<input id="price" type="number" min=".01" step=".01" required placeholder="e.g. 12"></label></div><button class="primary">Add to Inventory</button></form>
-<section class="panel"><h2>Inventory List</h2><table><thead><tr><th>Item</th><th>Available (kg)</th><th>Price/kg</th><th>Action</th></tr></thead><tbody id="inventory"></tbody></table><p class="empty" id="invEmpty">No inventory items yet.</p></section></section>
-<section id="salesView" class="hidden"><div class="cards"><div class="card"><small>Sales Records</small><strong id="saleCount">0</strong></div><div class="card"><small>Total Sold</small><strong id="soldTotal">0 kg</strong></div><div class="card"><small>Payments Received</small><strong id="moneyTotal">₱0.00</strong></div></div>
-<form id="saleForm"><h2>Record Sale / Payment Received</h2><div class="fields"><label>Item<select id="saleItem" required><option value="">Select item</option></select></label><label>Weight sold (kg)<input id="qty" type="number" min=".01" step=".01" required placeholder="e.g. 3"></label><label>Date<input id="date" type="date" required></label></div><p class="note">Price/kg: <b id="priceShow">₱0.00</b> &nbsp; Payment: <b id="preview">₱0.00</b></p><button class="primary">Save Sale</button></form>
-<section class="panel"><h2>Sales & Payment Records</h2><table><thead><tr><th>Item</th><th>Sold (kg)</th><th>Price/kg</th><th>Payment</th><th>Date</th><th>Action</th></tr></thead><tbody id="saleRows"></tbody></table><p class="empty" id="saleEmpty">No sales yet.</p></section></section>
-<p class="note">Demo only. Records are stored in this browser (localStorage). Use made-up data.</p></main>
-<script>
-const IK="sellerInventoryV1",SK="sellerSalesV1";const $=id=>document.getElementById(id);$("date").value=new Date().toISOString().slice(0,10);
-function read(k){try{return JSON.parse(localStorage.getItem(k)||"[]")}catch{return []}}function save(k,v){localStorage.setItem(k,JSON.stringify(v))}function items(){return read(IK)}function sales(){return read(SK)}function cash(v){return new Intl.NumberFormat("en-PH",{style:"currency",currency:"PHP"}).format(v)}
-function sold(id){return sales().filter(s=>s.itemId===id).reduce((a,s)=>a+s.qty,0)}function remaining(i){return i.stock-sold(i.id)}
-function renderInv(){let list=items();$("inventory").innerHTML="";list.forEach(i=>{let tr=document.createElement("tr");[i.name,remaining(i).toFixed(2),cash(i.price)].forEach(x=>{let td=document.createElement("td");td.textContent=x;tr.appendChild(td)});let td=document.createElement("td"),b=document.createElement("button");b.textContent="Delete";b.className="danger";b.onclick=()=>{if(sales().some(s=>s.itemId===i.id)){alert("Delete this item's sales first.");return}save(IK,items().filter(x=>x.id!==i.id));render()};td.appendChild(b);tr.appendChild(td);$("inventory").appendChild(tr)});$("itemCount").textContent=list.length;$("stockTotal").textContent=list.reduce((a,i)=>a+remaining(i),0).toFixed(2)+" kg";$("invEmpty").style.display=list.length?"none":"block"}
-function selectItems(){let old=$("saleItem").value;$("saleItem").innerHTML='<option value="">Select item</option>';items().filter(i=>remaining(i)>0).forEach(i=>{let o=document.createElement("option");o.value=i.id;o.textContent=i.name+" ("+remaining(i).toFixed(2)+" kg available)";$("saleItem").appendChild(o)});if(items().some(i=>i.id===old&&remaining(i)>0))$("saleItem").value=old}
-function calc(){let i=items().find(x=>x.id===$("saleItem").value),q=Number($("qty").value);$("priceShow").textContent=cash(i?i.price:0);$("preview").textContent=cash(q>0&&i?q*i.price:0)}
-function renderSales(){let data=sales();$("saleRows").innerHTML="";data.forEach(s=>{let i=items().find(x=>x.id===s.itemId),tr=document.createElement("tr");[i?i.name:s.itemName,s.qty.toFixed(2),cash(s.price),cash(s.total),s.date].forEach(x=>{let td=document.createElement("td");td.textContent=x;tr.appendChild(td)});let td=document.createElement("td"),b=document.createElement("button");b.className="danger";b.textContent="Delete";b.onclick=()=>{save(SK,sales().filter(x=>x.id!==s.id));render()};td.appendChild(b);tr.appendChild(td);$("saleRows").appendChild(tr)});$("saleCount").textContent=data.length;$("soldTotal").textContent=data.reduce((a,s)=>a+s.qty,0).toFixed(2)+" kg";$("moneyTotal").textContent=cash(data.reduce((a,s)=>a+s.total,0));$("saleEmpty").style.display=data.length?"none":"block"}
-function render(){renderInv();selectItems();renderSales();calc()}
-$("itemForm").onsubmit=e=>{e.preventDefault();let n=$("name").value.trim(),st=Number($("stock").value),p=Number($("price").value);if(!n||st<0||p<=0){alert("Enter valid item, stock and price.");return}if(items().some(i=>i.name.toLowerCase()===n.toLowerCase())){alert("Item already exists.");return}let a=items();a.push({id:String(Date.now()),name:n,stock:st,price:p});save(IK,a);$("itemForm").reset();render()};
-$("saleItem").onchange=calc;$("qty").oninput=calc;
-$("saleForm").onsubmit=e=>{e.preventDefault();let i=items().find(x=>x.id===$("saleItem").value),q=Number($("qty").value),d=$("date").value;if(!i||q<=0||!d){alert("Select an item and enter valid quantity/date.");return}if(q>remaining(i)){alert("Quantity exceeds available stock.");return}let s=sales();s.unshift({id:String(Date.now()),itemId:i.id,itemName:i.name,qty:q,price:i.price,total:q*i.price,date:d});save(SK,s);$("saleForm").reset();$("date").value=new Date().toISOString().slice(0,10);render()};
-function tabs(inv){$("inventoryView").classList.toggle("hidden",!inv);$("salesView").classList.toggle("hidden",inv);$("invTab").classList.toggle("active",inv);$("salesTab").classList.toggle("active",!inv)}$("invTab").onclick=()=>tabs(true);$("salesTab").onclick=()=>tabs(false);render();
-</script></body></html>
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Junk Shop Inventory & Sales</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background: #f4f6f8;
+            color: #17202a;
+        }
+
+        header {
+            background: #111827;
+            color: white;
+            padding: 18px 22px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        h1 {
+            font-size: 1.3rem;
+            margin: 0;
+        }
+
+        header p {
+            color: #cbd5e1;
+            margin: 5px 0;
+        }
+
+        nav {
+            display: flex;
+            gap: 8px;
+        }
+
+        nav button {
+            padding: 12px 18px;
+            background: transparent;
+            border: 0;
+            color: white;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        nav button.active {
+            background: #374151;
+        }
+
+        main {
+            max-width: 1000px;
+            margin: 22px auto;
+            padding: 0 14px;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .card,
+        form,
+        .panel {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 2px 9px #0000000c;
+            margin-bottom: 16px;
+        }
+
+        .card small {
+            display: block;
+            color: #64748b;
+            margin-bottom: 7px;
+        }
+
+        .card strong {
+            font-size: 1.3rem;
+        }
+
+        h2 {
+            font-size: 1.15rem;
+            margin: 0 0 14px;
+        }
+
+        .fields {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 12px;
+        }
+
+        label {
+            font-weight: 600;
+        }
+
+        input,
+        select {
+            display: block;
+            width: 100%;
+            padding: 11px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            margin-top: 6px;
+            font: inherit;
+        }
+
+        .primary {
+            margin-top: 14px;
+            padding: 11px 15px;
+            background: #111827;
+            color: white;
+            border: 0;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .danger {
+            padding: 8px 10px;
+            background: #fee2e2;
+            color: #991b1b;
+            border: 0;
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 650px;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 11px 8px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th {
+            color: #475569;
+        }
+
+        .panel {
+            overflow-x: auto;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 20px;
+            color: #64748b;
+        }
+
+        .note {
+            
+            font-size: .9rem;
+            color: #64748b;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .restock {
+    padding: 8px 10px;
+    background: #dcfce7;
+    color: #166534;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-right: 5px;
+}
+
+        .edit {
+    padding: 8px 10px;
+    background: #dbeafe;
+    color: #1e40af;
+    border: 0;
+    border-radius: 8px;
+    margin-right: 6px;
+    cursor: pointer;
+}
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div>
+            <h1>♻️ Junk Shop Inventory & Sales Tracker</h1>
+            <p>Manage your stock and sales to customers.</p>
+        </div>
+
+        <nav>
+            <button id="invTab" class="active">Inventory</button>
+            <button id="salesTab">Sales / Payments</button>
+        </nav>
+    </header>
+
+    <main>
+
+        <!-- INVENTORY SECTION -->
+        <section id="inventoryView">
+
+            <div class="cards">
+                <div class="card">
+                    <small>Number of Items</small>
+                    <strong id="itemCount">0</strong>
+                </div>
+
+                <div class="card">
+                    <small>Overall Stocks Available</small>
+                    <strong id="stockTotal">0 kg</strong>
+                </div>
+            </div>
+
+            <form id="itemForm">
+                <h2>Add Inventory Item</h2>
+
+                <div class="fields">
+                    <label>
+                        Item name
+                        <input
+                            id="name"
+                            required
+                            maxlength="60"
+                            placeholder="e.g. Plastic bottles"
+                        >
+                    </label>
+
+                    <label>
+                        Starting stock (kg)
+                        <input
+                            id="stock"
+                            type="number"
+                            min="0"
+                            step=".01"
+                            required
+                            placeholder="e.g. 20"
+                        >
+                    </label>
+
+                    <label>
+                        Selling price per kg (₱)
+                        <input
+                            id="price"
+                            type="number"
+                            min=".01"
+                            step=".01"
+                            required
+                            placeholder="e.g. 12"
+                        >
+                    </label>
+                </div>
+
+                <button class="primary">Add to Inventory</button>
+            </form>
+
+            <section class="panel">
+                <h2>Inventory List</h2>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Available (kg)</th>
+                            <th>Price/kg</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="inventory"></tbody>
+                </table>
+
+                <p class="empty" id="invEmpty">
+                    No inventory items yet.
+                </p>
+            </section>
+
+        </section>
+
+        <!-- SALES SECTION -->
+        <section id="salesView" class="hidden">
+
+            <div class="cards">
+                <div class="card">
+                    <small>Sales Records</small>
+                    <strong id="saleCount">0</strong>
+                </div>
+
+                <div class="card">
+                    <small>Total Sold</small>
+                    <strong id="soldTotal">0 kg</strong>
+                </div>
+
+                <div class="card">
+                    <small>Payments Received</small>
+                    <strong id="moneyTotal">₱0.00</strong>
+                </div>
+            </div>
+
+            <form id="saleForm">
+                <h2>Record Sale / Payment Received</h2>
+
+                <div class="fields">
+                    <label>
+                        Item
+                        <select id="saleItem" required>
+                            <option value="">Select item</option>
+                        </select>
+                    </label>
+
+                    <label>
+                        Weight sold (kg)
+                        <input
+                            id="qty"
+                            type="number"
+                            min=".01"
+                            step=".01"
+                            required
+                            placeholder="e.g. 3"
+                        >
+                    </label>
+
+                    <label>
+                        Date
+                        <input id="date" type="date" required>
+                    </label>
+                </div>
+
+                <p class="note">
+                    Price/kg: <b id="priceShow">₱0.00</b>
+                    &nbsp;
+                    Payment: <b id="preview">₱0.00</b>
+                </p>
+
+                <button class="primary">Save Sale</button>
+            </form>
+
+            <section class="panel">
+                <h2>Sales & Payment Records</h2>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Sold (kg)</th>
+                            <th>Price/kg</th>
+                            <th>Payment</th>
+                            <th>Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="saleRows"></tbody>
+                </table>
+
+                <p class="empty" id="saleEmpty">
+                    No sales yet.
+                </p>
+            </section>
+
+        </section>
+
+        <p class="note">
+            Demo only. Records are stored in this browser (localStorage).
+            Use made-up data.
+        </p>
+
+    </main>
+
+    <script>
+        // STORAGE KEYS
+        const IK = "sellerInventoryV1";
+        const SK = "sellerSalesV1";
+
+        const $ = id => document.getElementById(id);
+
+        $("date").value = new Date().toISOString().slice(0, 10);
+
+
+        // STORAGE FUNCTIONS
+        function read(k) {
+            try {
+                return JSON.parse(localStorage.getItem(k) || "[]");
+            } catch {
+                return [];
+            }
+        }
+
+        function save(k, v) {
+            localStorage.setItem(k, JSON.stringify(v));
+        }
+
+        function items() {
+            return read(IK);
+        }
+
+        function sales() {
+            return read(SK);
+        }
+
+        function cash(v) {
+            return new Intl.NumberFormat("en-PH", {
+                style: "currency",
+                currency: "PHP"
+            }).format(v);
+        }
+
+
+        // INVENTORY CALCULATIONS
+        function sold(id) {
+            return sales()
+                .filter(s => s.itemId === id)
+                .reduce((a, s) => a + s.qty, 0);
+        }
+
+        function remaining(i) {
+            return i.stock - sold(i.id);
+        }
+
+
+        // RENDER INVENTORY
+        function renderInv() {
+            let list = items();
+
+            $("inventory").innerHTML = "";
+
+            list.forEach(i => {
+                let tr = document.createElement("tr");
+
+                [i.name, remaining(i).toFixed(2), cash(i.price)]
+                    .forEach(x => {
+                        let td = document.createElement("td");
+                        td.textContent = x;
+                        tr.appendChild(td);
+                    });
+
+                let td = document.createElement("td");
+
+// RESTOCK BUTTON
+let restockBtn = document.createElement("button");
+
+restockBtn.textContent = "Restock";
+restockBtn.className = "restock";
+
+restockBtn.onclick = () => {
+    let quantity = Number(
+        prompt("Enter additional stock (kg) for " + i.name + ":")
+    );
+
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+        alert("Please enter a valid quantity.");
+        return;
+    }
+
+    let list = items();
+
+    let item = list.find(x => x.id === i.id);
+
+    if (!item) {
+        alert("Item not found.");
+        return;
+    }
+
+    item.stock += quantity;
+
+    save(IK, list);
+
+    alert("Successfully restocked " + i.name + "!");
+
+    render();
+};
+
+td.appendChild(restockBtn);
+
+        // CHANGE PRICE BUTTON
+let editBtn = document.createElement("button");
+
+editBtn.textContent = "Change Price";
+editBtn.className = "edit";
+
+editBtn.onclick = () => {
+    let newPrice = prompt(
+        "Enter new price per kg:",
+        i.price
+    );
+
+    if (newPrice === null) return;
+
+    let price = Number(newPrice);
+
+    if (!Number.isFinite(price) || price <= 0) {
+        alert("Please enter a valid price.");
+        return;
+    }
+
+    let updatedItems = items().map(x =>
+        x.id === i.id
+            ? { ...x, price: price }
+            : x
+    );
+
+    save(IK, updatedItems);
+
+    alert("Price updated successfully!");
+
+    render();
+};
+
+td.appendChild(editBtn);
+
+// DELETE BUTTON
+let b = document.createElement("button");
+
+b.textContent = "Delete";
+b.className = "danger";
+
+                b.onclick = () => {
+                    if (sales().some(s => s.itemId === i.id)) {
+                        alert("Delete this item's sales first.");
+                        return;
+                    }
+
+                    save(
+                        IK,
+                        items().filter(x => x.id !== i.id)
+                    );
+
+                    render();
+                };
+
+                td.appendChild(b);
+                tr.appendChild(td);
+
+                $("inventory").appendChild(tr);
+            });
+
+            $("itemCount").textContent = list.length;
+
+            $("stockTotal").textContent =
+                list.reduce((a, i) => a + remaining(i), 0).toFixed(2) + " kg";
+
+            $("invEmpty").style.display =
+                list.length ? "none" : "block";
+        }
+
+
+        // POPULATE ITEM SELECT
+        function selectItems() {
+            let old = $("saleItem").value;
+
+            $("saleItem").innerHTML =
+                '<option value="">Select item</option>';
+
+            items()
+                .filter(i => remaining(i) > 0)
+                .forEach(i => {
+                    let o = document.createElement("option");
+
+                    o.value = i.id;
+                    o.textContent =
+                        i.name + " (" +
+                        remaining(i).toFixed(2) +
+                        " kg available)";
+
+                    $("saleItem").appendChild(o);
+                });
+
+            if (items().some(i => i.id === old && remaining(i) > 0)) {
+                $("saleItem").value = old;
+            }
+        }
+
+
+        // CALCULATE SALE PAYMENT
+        function calc() {
+            let i = items().find(
+                x => x.id === $("saleItem").value
+            );
+
+            let q = Number($("qty").value);
+
+            $("priceShow").textContent = cash(i ? i.price : 0);
+
+            $("preview").textContent =
+                cash(q > 0 && i ? q * i.price : 0);
+        }
+
+
+        // RENDER SALES
+        function renderSales() {
+            let data = sales();
+
+            $("saleRows").innerHTML = "";
+
+            data.forEach(s => {
+                let i = items().find(x => x.id === s.itemId);
+                let tr = document.createElement("tr");
+
+                [
+                    i ? i.name : s.itemName,
+                    s.qty.toFixed(2),
+                    cash(s.price),
+                    cash(s.total),
+                    s.date
+                ].forEach(x => {
+                    let td = document.createElement("td");
+                    td.textContent = x;
+                    tr.appendChild(td);
+                });
+
+                let td = document.createElement("td");
+                let b = document.createElement("button");
+
+                b.className = "danger";
+                b.textContent = "Delete";
+
+                b.onclick = () => {
+                    save(
+                        SK,
+                        sales().filter(x => x.id !== s.id)
+                    );
+
+                    render();
+                };
+
+                td.appendChild(b);
+                tr.appendChild(td);
+
+                $("saleRows").appendChild(tr);
+            });
+
+            $("saleCount").textContent = data.length;
+
+            $("soldTotal").textContent =
+                data.reduce((a, s) => a + s.qty, 0).toFixed(2) + " kg";
+
+            $("moneyTotal").textContent =
+                cash(data.reduce((a, s) => a + s.total, 0));
+
+            $("saleEmpty").style.display =
+                data.length ? "none" : "block";
+        }
+
+
+        // RENDER ALL DATA
+        function render() {
+            renderInv();
+            selectItems();
+            renderSales();
+            calc();
+        }
+
+
+        // ADD INVENTORY ITEM
+        $("itemForm").onsubmit = e => {
+            e.preventDefault();
+
+            let n = $("name").value.trim();
+            let st = Number($("stock").value);
+            let p = Number($("price").value);
+
+            if (!n || st < 0 || p <= 0) {
+                alert("Enter valid item, stock and price.");
+                return;
+            }
+
+            if (items().some(i => i.name.toLowerCase() === n.toLowerCase())) {
+                alert("Item already exists.");
+                return;
+            }
+
+            let a = items();
+
+            a.push({
+                id: String(Date.now()),
+                name: n,
+                stock: st,
+                price: p
+            });
+
+            save(IK, a);
+
+            $("itemForm").reset();
+
+            render();
+        };
+
+
+        // SALE FORM EVENTS
+        $("saleItem").onchange = calc;
+        $("qty").oninput = calc;
+
+
+        // SAVE SALE
+        $("saleForm").onsubmit = e => {
+            e.preventDefault();
+
+            let i = items().find(
+                x => x.id === $("saleItem").value
+            );
+
+            let q = Number($("qty").value);
+            let d = $("date").value;
+
+            if (!i || q <= 0 || !d) {
+                alert("Select an item and enter valid quantity/date.");
+                return;
+            }
+
+            if (q > remaining(i)) {
+                alert("Quantity exceeds available stock.");
+                return;
+            }
+
+            let s = sales();
+
+            s.unshift({
+                id: String(Date.now()),
+                itemId: i.id,
+                itemName: i.name,
+                qty: q,
+                price: i.price,
+                total: q * i.price,
+                date: d
+            });
+
+            save(SK, s);
+
+            $("saleForm").reset();
+
+            $("date").value = new Date().toISOString().slice(0, 10);
+
+            render();
+        };
+
+
+        // TAB SWITCHING
+        function tabs(inv) {
+            $("inventoryView").classList.toggle("hidden", !inv);
+            $("salesView").classList.toggle("hidden", inv);
+
+            $("invTab").classList.toggle("active", inv);
+            $("salesTab").classList.toggle("active", !inv);
+        }
+
+        $("invTab").onclick = () => tabs(true);
+        $("salesTab").onclick = () => tabs(false);
+
+
+        // INITIALIZE APPLICATION
+        render();
+    </script>
+
+</body>
+</html>
